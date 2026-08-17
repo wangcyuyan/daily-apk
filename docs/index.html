@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>每日精选 · 心理哲学 & 毛选</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0f1115; color: #e6e8ee; line-height: 1.75;
+    padding: env(safe-area-inset-top) 18px 40px;
+  }
+  .hero { max-width: 600px; margin: 0 auto; }
+  .date { color: #7aa2f7; font-size: 13px; letter-spacing: 1px; }
+  h1 { font-size: 24px; margin: 8px 0 18px; }
+  .card {
+    background: #1a1d27; border: 1px solid #2a2f3e; border-radius: 16px;
+    padding: 18px 20px; margin: 16px 0;
+  }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px;
+    margin-bottom: 10px; font-weight: 600;
+  }
+  .tag.psy { background: #1f2d1c; color: #9ece6a; }
+  .tag.mao { background: #2d1f1f; color: #f7768e; }
+  .card .title { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .card .quote { font-size: 15px; color: #cdd2e0; border-left: 3px solid #3b4261; padding-left: 12px; margin: 10px 0; }
+  .card .plain {
+    font-size: 14px; color: #a9b0c4; background: #14161e; border-radius: 10px;
+    padding: 12px 14px; margin-top: 10px;
+  }
+  .card .plain b { color: #e0af68; font-weight: 600; }
+  .card .source { font-size: 12px; color: #6b7089; margin-top: 10px; }
+  .src { color: #6b7089; font-size: 12px; margin-top: 24px; text-align: center; }
+  .loading { opacity: .6; }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="date" id="date">加载中…</div>
+    <h1 id="title" class="loading">正在拉取今日内容</h1>
+
+    <div class="card" id="psyCard">
+      <span class="tag psy">🧠 心理哲学</span>
+      <div class="title" id="psyTitle">…</div>
+      <div class="quote" id="psyQuote">…</div>
+      <div class="plain" id="psyPlain">…</div>
+      <div class="source" id="psySrc"></div>
+    </div>
+
+    <div class="card" id="maoCard">
+      <span class="tag mao">📕 毛选精选</span>
+      <div class="title" id="maoTitle">…</div>
+      <div class="quote" id="maoQuote">…</div>
+      <div class="plain" id="maoPlain">…</div>
+      <div class="source" id="maoSrc"></div>
+    </div>
+
+    <div class="src" id="src"></div>
+  </div>
+
+<script>
+  function fill(prefix, obj, textKey) {
+    document.getElementById(prefix + 'Title').textContent = obj.title || '';
+    document.getElementById(prefix + 'Quote').textContent = obj[textKey] || '';
+    var plain = document.getElementById(prefix + 'Plain');
+    plain.innerHTML = '<b>大白话：</b>' + (obj.plain || '');
+    document.getElementById(prefix + 'Src').textContent = '出处：' + (obj.source || '—');
+  }
+
+  // 同目录拉取 data.json；追加时间戳破坏缓存，保证拿到当天最新
+  fetch('data.json?t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      document.getElementById('date').textContent = d.date;
+      var title = document.getElementById('title');
+      title.textContent = '每日精选 · ' + d.date;
+      title.classList.remove('loading');
+
+      if (d.psychology) fill('psy', d.psychology, 'content');
+      if (d.mao) fill('mao', d.mao, 'excerpt');
+
+      document.getElementById('src').textContent =
+        '数据来源：' + (d.source === 'online' ? '联网抓取' : '本地精选库') +
+        ' · 生成于 ' + d.generated_at;
+    })
+    .catch(function (e) {
+      document.getElementById('title').textContent = '加载失败：' + e.message;
+    });
+</script>
+</body>
+</html>

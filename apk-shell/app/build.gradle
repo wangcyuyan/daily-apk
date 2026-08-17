@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace "com.example.dailyapp"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.dailyapp"
+        minSdk 24          // Android 7.0，覆盖绝大多数在网设备
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false   // Demo 不混淆，方便你改
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // 本 Demo 只用系统 WebView，无需第三方依赖
+}

@@ -1,0 +1,4 @@
+// 顶层 build.gradle（项目级）
+plugins {
+    id 'com.android.application' version '8.5.0' apply false
+}
