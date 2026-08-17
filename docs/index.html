@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15151f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>每日精选 · 心理哲学 & 毛选</title>
 <style>
   :root { color-scheme: dark; }
@@ -90,6 +93,13 @@
     .catch(function (e) {
       document.getElementById('title').textContent = '加载失败：' + e.message;
     });
+
+  // 注册 Service Worker（让网页可“添加到主屏幕”并离线可用）
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
 </script>
 </body>
 </html>
