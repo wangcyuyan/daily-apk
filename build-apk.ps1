@@ -26,13 +26,6 @@ if (-not (Test-Path $licDir)) { New-Item -ItemType Directory -Path $licDir -Forc
 $licFile = Join-Path $licDir "android-sdk-license"
 if (-not (Test-Path $licFile)) { Set-Content -Path $licFile -Value "24333f8a63b6825ea9c5514f83c2829b004d1fee" -NoNewline }
 
-# clean corrupted partial Gradle download so it re-fetches fresh
-$gradleDist = "$env:USERPROFILE\.gradle\wrapper\dists\gradle-8.4-bin"
-if (Test-Path $gradleDist) {
-    Write-Host "Cleaning partial/corrupted Gradle download..."
-    Remove-Item -Recurse -Force $gradleDist
-}
-
 # install sdk
 $platformsDir = Join-Path $sdk "platforms\android-34"
 $buildToolsDir = Join-Path $sdk "build-tools\34.0.0"

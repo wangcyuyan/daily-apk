@@ -29,7 +29,31 @@ import urllib.error
 
 # ---------- 配置 ----------
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUTPUT = os.path.join(HERE, "data.json")
+
+
+def _load_env_file(path):
+    """极简 .env 加载器：仅补充 os.environ 中缺失的变量（不覆盖已存在的）。
+    把 LLM 密钥放到脚本同目录的 .env（已 gitignore），本地/自动化都能读到，又不进版本库。"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except FileNotFoundError:
+        pass
+
+
+_load_env_file(os.path.join(HERE, ".env"))
+
+
+# 关键：网页(index.html) fetch 的是同目录的 data.json，即 docs/data.json。
+# 生成内容必须落在这里，APK 每天拉取的才是当天最新；否则会一直显示旧数据。
+OUTPUT = os.path.join(HERE, "..", "docs", "data.json")
 TIMEOUT = 8
 
 # "live" = B 模式（实时生成 + 真实文库轮换）；"curated" = A 模式（仅精选库）

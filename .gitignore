@@ -1,0 +1,12 @@
+# ===== 构建产物（可再生，没必要进版本库）=====
+apk-shell/.gradle/
+apk-shell/app/build/
+*.apk
+daily-app.apk
+
+# ===== WorkBuddy 项目数据 =====
+.workbuddy/
+
+# ===== 密钥（DeepSeek / LLM key，绝不提交）=====
+.env
+generator/.env
