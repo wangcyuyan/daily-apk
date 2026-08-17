@@ -7,6 +7,10 @@ daily-app.apk
 # ===== WorkBuddy 项目数据 =====
 .workbuddy/
 
+# ===== Python 缓存 =====
+__pycache__/
+*.pyc
+
 # ===== 密钥（DeepSeek / LLM key，绝不提交）=====
 .env
 generator/.env
