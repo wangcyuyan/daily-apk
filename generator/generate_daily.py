@@ -317,11 +317,19 @@ def norm_plain(p):
     return re.sub(r"^\s*大白话[：:]\s*", "", p).strip()
 
 
+def _decode_html(raw):
+    """marxists.org 中文页多为 GBK/GB2312 编码，直接用 utf-8 会解出乱码；utf-8 失败回退 gb18030。"""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("gb18030", errors="ignore")
+
+
 def try_fetch(url):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "daily-apk-demo/3.0"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return resp.read().decode("utf-8", errors="ignore")
+            return _decode_html(resp.read())
     except Exception:
         return None
 
@@ -355,10 +363,10 @@ def call_llm(system, user):
 
 # 真实文库索引（marxists.org）。URL 需在目标环境核实；任何失败都回退内置真实库。
 MAO_CORPUS_URLS = [
-    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-1930.htm",
-    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-1937.htm",
-    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-1944.htm",
-    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-1945.htm",
+    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-19300105.htm",
+    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-19370503.htm",
+    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-19440412.htm",
+    "https://www.marxists.org/chinese/maozedong/marxist.org-chinese-mao-19450110.htm",
 ]
 
 
@@ -375,10 +383,16 @@ def fetch_real_mao(date_str):
     text = re.sub(r"<style.*?</style>", " ", text, flags=re.S)
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
-    # 取一段像样长度的中文
-    for seg in re.split(r"[。！？\.!?]", text):
-        if 20 <= len(seg) <= 120 and any("\u4e00" <= c <= "\u9fff" for c in seg):
-            return {"title": "毛选精选（真实文库）", "excerpt": seg + "。",
+    # 取一段像样长度的真实中文。
+    # 文库页面正文常是几千字无标点断句的长段，按标点切+限长会全部落空 → 改取最长连续中文段的中间窗口。
+    runs = re.findall(r"[\u4e00-\u9fff]+", text)
+    runs = [r for r in runs if len(r) >= 30]
+    if runs:
+        body = max(runs, key=len)            # 最长连续中文段 ≈ 正文（导航多为短段）
+        start = max(0, len(body) // 2 - 60)
+        excerpt = body[start:start + 120].strip()
+        if excerpt:
+            return {"title": "毛选精选（真实文库）", "excerpt": excerpt + "。",
                     "source": "marxists.org 真实文库"}
     return None
 
