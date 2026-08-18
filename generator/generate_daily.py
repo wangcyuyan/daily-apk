@@ -383,12 +383,34 @@ def fetch_real_mao(date_str):
     text = re.sub(r"<style.*?</style>", " ", text, flags=re.S)
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
-    # 取一段像样长度的真实中文。
-    # 文库页面正文常是几千字无标点断句的长段，按标点切+限长会全部落空 → 改取最长连续中文段的中间窗口。
+    # 优先选有启示、指导、论断性质的句子；避开“华北事变指1935年……”这类纯历史定义句。
+    sentences = [s.strip() for s in re.split(r"[。！？]", text) if s.strip()]
+    guidance = [
+        "要", "应该", "必须", "只能", "只有", "只要", "就是", "不要", "不能", "敢于", "勇于",
+        "坚持", "保持", "注意", "重视", "反对", "提倡", "相信", "依靠", "发动", "组织", "领导",
+        "团结", "联系", "实事求是", "调查研究", "没有调查", "一切", "真正的", "根本", "基础",
+        "关键", "核心", "灵魂", "方向", "道路", "前途", "办法", "方针", "政策", "策略", "战术",
+        "战略", "斗争", "革命", "群众", "人民", "党", "军队", "干部", "阶级", "帝国主义",
+        "资本主义", "封建主义", "官僚资本主义", "和平", "战争", "统一", "独立", "自由", "解放",
+        "自力更生", "艰苦奋斗", "为人民服务", "不会", "不可", "应当", "须得", "务必",
+        "定要", "总要", "均须", "都应", "统统", "一律", "一概", "完全", "彻底",
+    ]
+    best, best_score = None, -999
+    for s in sentences:
+        cn = sum(1 for c in s if "\u4e00" <= c <= "\u9fff")
+        if cn < 25 or len(s) > 220:
+            continue
+        score = sum(3 for w in guidance if w in s) - sum(1 for c in s if c.isdigit())
+        if score > best_score:
+            best_score, best = score, s
+    if best:
+        return {"title": "毛选精选（真实文库）", "excerpt": best + "。",
+                "source": "marxists.org 真实文库"}
+    # 兜底：取最长连续中文段中间窗口
     runs = re.findall(r"[\u4e00-\u9fff]+", text)
     runs = [r for r in runs if len(r) >= 30]
     if runs:
-        body = max(runs, key=len)            # 最长连续中文段 ≈ 正文（导航多为短段）
+        body = max(runs, key=len)
         start = max(0, len(body) // 2 - 60)
         excerpt = body[start:start + 120].strip()
         if excerpt:
@@ -416,7 +438,7 @@ def gen_psychology(date_str):
     if not raw:
         return pick(PSYCHOLOGY_POOL, date_str), "offline"
     raw = strip_md(raw)
-    # 按'大白话：'把概念与大白话解释拆开，避免引用区也带上'大白话：'
+    # 按'大白话：'把概念与大白话解释拆开
     m = re.search(r"大白话[：:]\s*", raw)
     if m:
         concept = raw[:m.start()].strip()
@@ -424,8 +446,16 @@ def gen_psychology(date_str):
     else:
         concept = raw.strip()
         plain_text = ""
-    title = concept.splitlines()[0][:40] if concept else "今日心理哲学"
-    content = concept[:160]
+    # 严格拆分标题(概念名)与一句话解释,避免标题把整句解释都带进去造成网页重复
+    concept = re.sub(r"\s*一句话解释\s*[：:]?\s*", "：", concept)
+    m2 = re.search(r"^(.*?)[：:]\s*(.+)$", concept, re.S)
+    if m2 and 2 <= len(m2.group(1).strip()) <= 20:
+        title = m2.group(1).strip()[:40]
+        content = m2.group(2).strip()[:160]
+    else:
+        lines = concept.splitlines()
+        title = lines[0][:40] if lines else "今日心理哲学"
+        content = "\n".join(lines[1:])[:160] if len(lines) > 1 else title
     return {"title": title, "content": content, "plain": plain_text,
             "source": "LLM 实时生成"}, "online"
 
