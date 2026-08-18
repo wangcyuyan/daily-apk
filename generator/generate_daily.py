@@ -441,48 +441,54 @@ def gen_mao_plain(excerpt):
     return {"plain": plain_text, "insight": insight_text}
 
 
+def _parse_field(raw, marker, next_markers):
+    """按 marker 切出字段值，遇到 next_markers 中任意一个即停止。"""
+    pat = re.escape(marker) + r"[：:]\s*"
+    m = re.search(pat, raw)
+    if not m:
+        return None
+    start = m.end()
+    end = len(raw)
+    for nm in next_markers:
+        n = re.search(re.escape(nm) + r"[：:]\s*", raw[start:])
+        if n:
+            end = start + n.start()
+            break
+    return raw[start:end].strip()
+
+
 def gen_psychology(date_str):
     """每天一条新鲜的心理/哲学概念 + 大白话 + 对当代年轻人的启示；失败回退精选库。"""
     sys_p = "每天给用户一条心理学或哲学概念。纯文本，绝对不要使用任何 markdown 符号" \
-            "（不要出现 ** # * ` 等）。格式严格为：第一行写概念名称；第二行起先一句话解释这个概念；" \
-            "然后另起一行以'大白话：'开头写一段结合生活场景的解释（200字内）；" \
-            "再另起一行以'启示：'开头，写这条概念对当代年轻人（20岁上下）有什么行动上的启示" \
-            "（100字内，具体、可落地，不要空话套话）；最后可写一句出处。" \
+            "（不要出现 ** # * ` 等）。格式必须严格为以下字段，每个字段单独一行，" \
+            "字段名后必须跟中文冒号'：'：\n" \
+            "概念名：（简短概念名，2~10字）\n" \
+            "一句话解释：（一句话解释这个概念，50字内）\n" \
+            "大白话：（结合生活场景的解释，200字内）\n" \
+            "启示：（这条概念对20岁上下的年轻人有什么具体、可落地的行动启示，100字内，不要空话套话）\n" \
+            "出处（可选）：（概念来源，可有可无）\n" \
             "不要重复常见套话，力求新鲜易懂。"
     raw = call_llm(sys_p, "今天是" + date_str + "，请给一条今天的概念。")
     if not raw:
         return pick(PSYCHOLOGY_POOL, date_str), "offline"
     raw = strip_md(raw)
-    # 按'大白话：'把概念与大白话解释拆开
-    m = re.search(r"大白话[：:]\s*", raw)
-    if m:
-        concept = raw[:m.start()].strip()
-        after_bai = raw[m.end():]
-        m_ins = re.search(r"启示[：:]\s*", after_bai)
-        if m_ins:
-            plain_text = after_bai[:m_ins.start()].strip()
-            insight_text = after_bai[m_ins.end():].strip()
-            # 出处只应落在 content，剥离可能误带进启示块的"出处：…"尾巴
-            insight_text = re.split(r"出处[：:]", insight_text)[0].strip()
-        else:
-            plain_text = after_bai.strip()
-            insight_text = ""
-    else:
-        concept = raw.strip()
-        plain_text = ""
-        insight_text = ""
-    # 严格拆分标题(概念名)与一句话解释,避免标题把整句解释都带进去造成网页重复
-    concept = re.sub(r"\s*一句话解释\s*[：:]?\s*", "：", concept)
-    m2 = re.search(r"^(.*?)[：:]\s*(.+)$", concept, re.S)
-    if m2 and 2 <= len(m2.group(1).strip()) <= 20:
-        title = m2.group(1).strip()[:40]
-        content = m2.group(2).strip()[:160]
-    else:
-        lines = concept.splitlines()
-        title = lines[0][:40] if lines else "今日心理哲学"
-        content = "\n".join(lines[1:])[:160] if len(lines) > 1 else title
-    return {"title": title, "content": content, "plain": plain_text,
-            "insight": insight_text, "source": "LLM 实时生成"}, "online"
+
+    title = _parse_field(raw, "概念名", ["一句话解释", "大白话", "启示", "出处"])
+    content = _parse_field(raw, "一句话解释", ["大白话", "启示", "出处"])
+    plain_text = _parse_field(raw, "大白话", ["启示", "出处"])
+    insight_text = _parse_field(raw, "启示", ["出处"])
+
+    # 兜底：任何字段缺失时，用老式第一行/剩余行拆分，保证不空
+    if not title:
+        first = re.split(r"大白话[：:]|一句话解释[：:]", raw)[0].strip()
+        title = first.splitlines()[0][:40] if first else "今日心理哲学"
+    if not content:
+        concept = re.split(r"大白话[：:]|一句话解释[：:]", raw)[0].strip()
+        concept = re.sub(r"^\s*概念名[：:]\s*", "", concept)
+        content = "\n".join(concept.splitlines()[1:])[:160] if "\n" in concept else concept
+
+    return {"title": title[:40], "content": content[:160], "plain": plain_text or "",
+            "insight": insight_text or "", "source": "LLM 实时生成"}, "online"
 
 
 def generate():
