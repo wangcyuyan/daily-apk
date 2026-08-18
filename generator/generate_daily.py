@@ -420,19 +420,34 @@ def fetch_real_mao(date_str):
 
 
 def gen_mao_plain(excerpt):
-    """LLM 只为真实毛选段落写大白话。源文已确定，LLM 不改写。"""
+    """LLM 只为真实毛选段落写大白话 + 对当代年轻人的启示。源文已确定，LLM 不改写。
+    返回 {"plain": ..., "insight": ...} 或 None。"""
     sys_p = "你用通俗易懂的'大白话'解释一段《毛泽东选集》原文，面向普通读者，" \
-            "结合今天的生活/工作场景，200字内，不要编造出处。纯文本输出，" \
-            "绝对不要使用 ** # * ` 等任何 markdown 符号。"
-    r = call_llm(sys_p, "请用大白话解释这段毛选：\n" + excerpt)
-    return strip_md(r) if r else None
+            "结合今天的生活/工作场景，200字内；然后再写一段'对当代年轻人的启示'" \
+            "（100字内，具体可落地，不要空话套话）。纯文本输出，" \
+            "绝对不要使用 ** # * ` 等任何 markdown 符号。" \
+            "格式：先写'大白话：……'，另起一行写'启示：……'。不要编造出处。"
+    r = call_llm(sys_p, "请用大白话解释这段毛选，并给出对当代年轻人的启示：\n" + excerpt)
+    if not r:
+        return None
+    r = strip_md(r)
+    m_ins = re.search(r"启示[：:]\s*", r)
+    if m_ins:
+        plain_text = re.sub(r"^大白话[：:]\s*", "", r[:m_ins.start()].strip())
+        insight_text = r[m_ins.end():].strip()
+    else:
+        plain_text = re.sub(r"^大白话[：:]\s*", "", r).strip()
+        insight_text = ""
+    return {"plain": plain_text, "insight": insight_text}
 
 
 def gen_psychology(date_str):
-    """每天一条新鲜的心理/哲学概念 + 大白话；失败回退精选库。"""
+    """每天一条新鲜的心理/哲学概念 + 大白话 + 对当代年轻人的启示；失败回退精选库。"""
     sys_p = "每天给用户一条心理学或哲学概念。纯文本，绝对不要使用任何 markdown 符号" \
             "（不要出现 ** # * ` 等）。格式严格为：第一行写概念名称；第二行起先一句话解释这个概念；" \
-            "然后另起一行以'大白话：'开头写一段结合生活场景的解释（200字内）；最后可写一句出处。" \
+            "然后另起一行以'大白话：'开头写一段结合生活场景的解释（200字内）；" \
+            "再另起一行以'启示：'开头，写这条概念对当代年轻人（20岁上下）有什么行动上的启示" \
+            "（100字内，具体、可落地，不要空话套话）；最后可写一句出处。" \
             "不要重复常见套话，力求新鲜易懂。"
     raw = call_llm(sys_p, "今天是" + date_str + "，请给一条今天的概念。")
     if not raw:
@@ -442,10 +457,20 @@ def gen_psychology(date_str):
     m = re.search(r"大白话[：:]\s*", raw)
     if m:
         concept = raw[:m.start()].strip()
-        plain_text = raw[m.end():].strip()
+        after_bai = raw[m.end():]
+        m_ins = re.search(r"启示[：:]\s*", after_bai)
+        if m_ins:
+            plain_text = after_bai[:m_ins.start()].strip()
+            insight_text = after_bai[m_ins.end():].strip()
+            # 出处只应落在 content，剥离可能误带进启示块的"出处：…"尾巴
+            insight_text = re.split(r"出处[：:]", insight_text)[0].strip()
+        else:
+            plain_text = after_bai.strip()
+            insight_text = ""
     else:
         concept = raw.strip()
         plain_text = ""
+        insight_text = ""
     # 严格拆分标题(概念名)与一句话解释,避免标题把整句解释都带进去造成网页重复
     concept = re.sub(r"\s*一句话解释\s*[：:]?\s*", "：", concept)
     m2 = re.search(r"^(.*?)[：:]\s*(.+)$", concept, re.S)
@@ -457,7 +482,7 @@ def gen_psychology(date_str):
         title = lines[0][:40] if lines else "今日心理哲学"
         content = "\n".join(lines[1:])[:160] if len(lines) > 1 else title
     return {"title": title, "content": content, "plain": plain_text,
-            "source": "LLM 实时生成"}, "online"
+            "insight": insight_text, "source": "LLM 实时生成"}, "online"
 
 
 def generate():
@@ -482,7 +507,7 @@ def generate():
         if real:
             plain = gen_mao_plain(real["excerpt"])
             if plain:
-                mao = {**real, "plain": plain}
+                mao = {**real, "plain": plain["plain"], "insight": plain.get("insight", "")}
                 mao_src = "online"
                 print(f"[毛选] 真实文库+LLM大白话 -> {real['excerpt'][:18]}…")
             else:
@@ -501,8 +526,10 @@ def generate():
         "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "mode": MODE,
         "source": overall,
-        "psychology": {**psychology, "plain": norm_plain(psychology.get("plain", ""))},
-        "mao": {**mao, "plain": norm_plain(mao.get("plain", ""))},
+        "psychology": {**psychology, "plain": norm_plain(psychology.get("plain", "")),
+                       "insight": psychology.get("insight", "")},
+        "mao": {**mao, "plain": norm_plain(mao.get("plain", "")),
+                "insight": mao.get("insight", "")},
         "pools": {"psychology": PSYCHOLOGY_POOL, "mao": MAO_POOL},
     }
     with open(OUTPUT, "w", encoding="utf-8") as f:

@@ -36,6 +36,11 @@
     padding: 12px 14px; margin-top: 10px;
   }
   .card .plain b { color: #e0af68; font-weight: 600; }
+  .card .insight {
+    font-size: 14px; color: #c8b6f0; background: #181428; border-left: 3px solid #7a5cff;
+    border-radius: 10px; padding: 12px 14px; margin-top: 10px;
+  }
+  .card .insight b { color: #b18cff; font-weight: 600; }
   .card .source { font-size: 12px; color: #6b7089; margin-top: 10px; }
   .src { color: #6b7089; font-size: 12px; margin-top: 24px; text-align: center; }
   .loading { opacity: .6; }
@@ -51,6 +56,7 @@
       <div class="title" id="psyTitle">…</div>
       <div class="quote" id="psyQuote">…</div>
       <div class="plain" id="psyPlain">…</div>
+      <div class="insight" id="psyInsight" style="display:none">…</div>
       <div class="source" id="psySrc"></div>
     </div>
 
@@ -59,6 +65,7 @@
       <div class="title" id="maoTitle">…</div>
       <div class="quote" id="maoQuote">…</div>
       <div class="plain" id="maoPlain">…</div>
+      <div class="insight" id="maoInsight" style="display:none">…</div>
       <div class="source" id="maoSrc"></div>
     </div>
 
@@ -71,6 +78,13 @@
     document.getElementById(prefix + 'Quote').textContent = obj[textKey] || '';
     var plain = document.getElementById(prefix + 'Plain');
     plain.innerHTML = '<b>大白话：</b>' + (obj.plain || '');
+    var ins = document.getElementById(prefix + 'Insight');
+    if (obj.insight) {
+      ins.style.display = '';
+      ins.innerHTML = '<b>💡 对当代年轻人的启示：</b>' + obj.insight;
+    } else {
+      ins.style.display = 'none';
+    }
     document.getElementById(prefix + 'Src').textContent = '出处：' + (obj.source || '—');
   }
 
